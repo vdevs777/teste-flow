@@ -40,13 +40,14 @@ function FlowEditor() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [nodeId, setNodeId] = useState(2);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const addNode = () => {
+  const addNode = (type: "default" | "input" | "output") => {
     const newNode: Node = {
       id: nodeId.toString(),
-      type: "default",
+      type,
       data: { label: `Node ${nodeId}` },
       position: { x: Math.random() * 400, y: Math.random() * 400 },
     };
@@ -60,6 +61,11 @@ function FlowEditor() {
       prev.filter((edge) => edge.source !== id && edge.target !== id)
     );
     setSelectedNodeId(null);
+  };
+
+  const removeEdge = (id: string) => {
+    setEdges((prev) => prev.filter((edge) => edge.id !== id));
+    setSelectedEdgeId(null);
   };
 
   const updateNodeLabel = (id: string, newLabel: string) => {
@@ -79,7 +85,30 @@ function FlowEditor() {
 
   const onNodeClick = (_: any, node: Node) => {
     setSelectedNodeId(node.id);
+    setSelectedEdgeId(null);
   };
+
+  const onEdgeClick = (_: any, edge: Edge) => {
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Delete") {
+        if (selectedNodeId) {
+          removeNode(selectedNodeId);
+        } else if (selectedEdgeId) {
+          removeEdge(selectedEdgeId);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedNodeId, selectedEdgeId]);
 
   useEffect(() => {
     if (selectedNodeId && listRef.current) {
@@ -92,67 +121,77 @@ function FlowEditor() {
 
   return (
     <div className="w-full h-screen flex">
-      <aside className="w-60 p-4 bg-gray-100 border-r shadow-md">
-        <h2 className="text-lg font-semibold mb-2">Nós Criados</h2>
-        <ScrollArea className="h-[860px]">
-          <ul ref={listRef} className="space-y-2">
-            {nodes.map((node) => (
-              <li
-                key={node.id}
-                id={`node-item-${node.id}`}
-                className={`flex justify-between items-center p-2 bg-white rounded shadow cursor-pointer transition-all ${
-                  selectedNodeId === node.id ? "border-2 border-blue-500" : ""
-                }`}
-                onClick={() => setSelectedNodeId(node.id)}
-              >
-                {editingNodeId === node.id ? (
-                  <input
-                    type="text"
+      <aside className="w-60 p-4 bg-gray-100 border-r shadow-md flex flex-col justify-between">
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Nós Criados</h2>
+          <ScrollArea className="h-[750px]">
+            <ul ref={listRef} className="space-y-2">
+              {nodes.map((node) => (
+                <li
+                  key={node.id}
+                  id={`node-item-${node.id}`}
+                  className={`flex justify-between items-center p-2 bg-white rounded shadow cursor-pointer transition-all ${
+                    selectedNodeId === node.id ? "border-2 border-blue-500" : ""
+                  }`}
+                  onClick={() => setSelectedNodeId(node.id)}
+                >
+                  {editingNodeId === node.id ? (
+                    <input
+                      type="text"
+                      // @ts-ignore
+                      defaultValue={node.data.label}
+                      autoFocus
+                      className="border p-1 rounded w-full"
+                      onBlur={(e) => updateNodeLabel(node.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          updateNodeLabel(
+                            node.id,
+                            (e.target as HTMLInputElement).value
+                          );
+                        }
+                      }}
+                    />
+                  ) : (
                     // @ts-ignore
-                    defaultValue={node.data.label}
-                    autoFocus
-                    className="border p-1 rounded w-full"
-                    onBlur={(e) => updateNodeLabel(node.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        updateNodeLabel(
-                          node.id,
-                          (e.target as HTMLInputElement).value
-                        );
-                      }
-                    }}
-                  />
-                ) : (
-                  // @ts-ignore
-                  <span>{node.data.label}</span>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingNodeId(node.id);
-                    }}
-                    className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeNode(node.id);
-                    }}
-                    className="bg-red-500 text-white px-2 py-1 rounded text-xs"
-                  >
-                    X
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </ScrollArea>
-        <Button className="mt-4 w-full" onClick={addNode}>
-          Adicionar Nó
-        </Button>
+                    <span>{node.data.label}</span>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingNodeId(node.id);
+                      }}
+                      className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeNode(node.id);
+                      }}
+                      className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                    >
+                      X
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </ScrollArea>
+        </div>
+        <div className="mt-4 space-y-2">
+          <Button className="w-full" onClick={() => addNode("default")}>
+            Adicionar Nó
+          </Button>
+          <Button className="w-full" onClick={() => addNode("input")}>
+            Adicionar Input
+          </Button>
+          <Button className="w-full" onClick={() => addNode("output")}>
+            Adicionar Output
+          </Button>
+        </div>
       </aside>
 
       <div className="flex-1 h-full relative">
@@ -167,6 +206,7 @@ function FlowEditor() {
           }
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           fitView
         >
           <Controls />
