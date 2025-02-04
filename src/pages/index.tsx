@@ -40,7 +40,6 @@ function FlowEditor() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [nodeId, setNodeId] = useState(2);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -63,11 +62,6 @@ function FlowEditor() {
     setSelectedNodeId(null);
   };
 
-  const removeEdge = (id: string) => {
-    setEdges((prev) => prev.filter((edge) => edge.id !== id));
-    setSelectedEdgeId(null);
-  };
-
   const updateNodeLabel = (id: string, newLabel: string) => {
     setNodes((prev) =>
       prev.map((node) =>
@@ -85,11 +79,9 @@ function FlowEditor() {
 
   const onNodeClick = (_: any, node: Node) => {
     setSelectedNodeId(node.id);
-    setSelectedEdgeId(null);
   };
 
   const onEdgeClick = (_: any, edge: Edge) => {
-    setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
   };
 
@@ -98,8 +90,6 @@ function FlowEditor() {
       if (event.key === "Delete") {
         if (selectedNodeId) {
           removeNode(selectedNodeId);
-        } else if (selectedEdgeId) {
-          removeEdge(selectedEdgeId);
         }
       }
     };
@@ -108,7 +98,7 @@ function FlowEditor() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedNodeId, selectedEdgeId]);
+  }, [selectedNodeId]);
 
   useEffect(() => {
     if (selectedNodeId && listRef.current) {
@@ -119,6 +109,21 @@ function FlowEditor() {
     }
   }, [selectedNodeId]);
 
+  const sortedNodes = {
+    input: nodes
+      .filter((node) => node.type === "input")
+      // @ts-ignore
+      .sort((a, b) => a.data.label.localeCompare(b.data.label)),
+    default: nodes
+      .filter((node) => node.type === "default")
+      // @ts-ignore
+      .sort((a, b) => a.data.label.localeCompare(b.data.label)),
+    output: nodes
+      .filter((node) => node.type === "output")
+      // @ts-ignore
+      .sort((a, b) => a.data.label.localeCompare(b.data.label)),
+  };
+
   return (
     <div className="w-full h-screen flex">
       <aside className="w-60 p-4 bg-gray-100 border-r shadow-md flex flex-col justify-between">
@@ -126,7 +131,9 @@ function FlowEditor() {
           <h2 className="text-lg font-semibold mb-2">Nós Criados</h2>
           <ScrollArea className="h-[750px]">
             <ul ref={listRef} className="space-y-2">
-              {nodes.map((node) => (
+              {/* Input Nodes */}
+              <li className="font-semibold">Inputs</li>
+              {sortedNodes.input.map((node) => (
                 <li
                   key={node.id}
                   id={`node-item-${node.id}`}
@@ -134,6 +141,7 @@ function FlowEditor() {
                     selectedNodeId === node.id ? "border-2 border-blue-500" : ""
                   }`}
                   onClick={() => setSelectedNodeId(node.id)}
+                  onDoubleClick={() => setEditingNodeId(node.id)} // Trigger edit on double click
                 >
                   {editingNodeId === node.id ? (
                     <input
@@ -166,14 +174,99 @@ function FlowEditor() {
                     >
                       ✎
                     </button>
+                  </div>
+                </li>
+              ))}
+
+              {/* Default Nodes */}
+              <li className="font-semibold">Nodes</li>
+              {sortedNodes.default.map((node) => (
+                <li
+                  key={node.id}
+                  id={`node-item-${node.id}`}
+                  className={`flex justify-between items-center p-2 bg-white rounded shadow cursor-pointer transition-all ${
+                    selectedNodeId === node.id ? "border-2 border-blue-500" : ""
+                  }`}
+                  onClick={() => setSelectedNodeId(node.id)}
+                  onDoubleClick={() => setEditingNodeId(node.id)} // Trigger edit on double click
+                >
+                  {editingNodeId === node.id ? (
+                    <input
+                      type="text"
+                      // @ts-ignore
+                      defaultValue={node.data.label}
+                      autoFocus
+                      className="border p-1 rounded w-full"
+                      onBlur={(e) => updateNodeLabel(node.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          updateNodeLabel(
+                            node.id,
+                            (e.target as HTMLInputElement).value
+                          );
+                        }
+                      }}
+                    />
+                  ) : (
+                    // @ts-ignore
+                    <span>{node.data.label}</span>
+                  )}
+                  <div className="flex gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeNode(node.id);
+                        setEditingNodeId(node.id);
                       }}
-                      className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                      className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
                     >
-                      X
+                      ✎
+                    </button>
+                  </div>
+                </li>
+              ))}
+
+              {/* Output Nodes */}
+              <li className="font-semibold">Outputs</li>
+              {sortedNodes.output.map((node) => (
+                <li
+                  key={node.id}
+                  id={`node-item-${node.id}`}
+                  className={`flex justify-between items-center p-2 bg-white rounded shadow cursor-pointer transition-all ${
+                    selectedNodeId === node.id ? "border-2 border-blue-500" : ""
+                  }`}
+                  onClick={() => setSelectedNodeId(node.id)}
+                  onDoubleClick={() => setEditingNodeId(node.id)} // Trigger edit on double click
+                >
+                  {editingNodeId === node.id ? (
+                    <input
+                      type="text"
+                      // @ts-ignore
+                      defaultValue={node.data.label}
+                      autoFocus
+                      className="border p-1 rounded w-full"
+                      onBlur={(e) => updateNodeLabel(node.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          updateNodeLabel(
+                            node.id,
+                            (e.target as HTMLInputElement).value
+                          );
+                        }
+                      }}
+                    />
+                  ) : (
+                    // @ts-ignore
+                    <span>{node.data.label}</span>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingNodeId(node.id);
+                      }}
+                      className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                    >
+                      ✎
                     </button>
                   </div>
                 </li>
